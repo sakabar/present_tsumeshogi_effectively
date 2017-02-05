@@ -1,0 +1,2 @@
+# present_tsumeshogi_effectively
+解くのに多少時間がかかる問題を解くことこそが大切だと考えられます。
