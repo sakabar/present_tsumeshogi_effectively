@@ -17,3 +17,10 @@ cabal.sandbox.config
 *.eventlog
 .stack-work/
 cabal.project.local
+
+
+#実行ファイル
+exe
+
+#かかった時間のファイル
+time_data
