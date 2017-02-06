@@ -64,23 +64,30 @@ avg lst = 1.0 * (fromIntegral $ sum $ lst) / (fromIntegral $ length lst)
 
 main = do
   args <- E.getArgs
-  when ((length args) /= 1) $ do
-    I.hPutStrLn I.stderr "Argument Error:<file_name>"
+  when ((length args) /= 2) $ do
+    I.hPutStrLn I.stderr "Argument Error:<file_name> single | plural"
     Ex.exitFailure
 
   let fileName = args !! 0 -- "time_data/5_moves_handbook_1.txt"
-  -- let howManyProblems = 4
+  let mode = args !! 1
+  when (mode /= "single" && mode /= "plural") $ do
+    I.hPutStrLn I.stderr "Argument Error:<file_name> single | plural"
+    Ex.exitFailure
+
   timeLines <- readTimeLst fileName
   let all_avg_sec = avg $ timeLines
   putStrLn $ show all_avg_sec
   let enumTimeLines = zip [1..] timeLines
   let chunks = S.chunksOf 4 enumTimeLines
 
+  let problems = if (mode == "single") then [ head $ L.sortBy (\tpl1 tpl2 -> compare (snd tpl2) (snd tpl1)) $ enumTimeLines ]
+                                       else head $ L.sortBy (\g1 g2 -> compare (avg $ map snd g2) (avg $ map snd g1)) $ chunks
+
+
   -- 見開きで一番時間がかかっている問題4問をセットで出題
   -- ただし、時間の比較は和ではなく平均で比較する
   -- これは、全問題数が4の倍数でなかった時に、問題数の異なるセットと正当に比較できるようにするため
-  let problems = head $ L.sortBy (\g1 g2 -> compare (avg $ map snd g2) (avg $ map snd g1)) $ chunks
-  let len = length problems
+
   let sum_sec = sum $ map snd problems
   let avg_time = avg $ map snd problems
   putStrLn $ show avg_time
