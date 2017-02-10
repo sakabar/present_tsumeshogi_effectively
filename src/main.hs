@@ -52,9 +52,9 @@ presentProblem probNum = do
   putStrLn $ (show probNum) ++ "問目を見てください。Ready?"
   inputStr <- getLine
   putStrLn "Go. [解けたらEnterを押してください]"
-  nowInt <- fmap epochTime2Int T.epochTime
+  nowInt <- epochTime2Int <$> T.epochTime
   inputStr <- getLine
-  nowInt2 <- fmap (+ 1) $ fmap epochTime2Int T.epochTime --切り上げのようなもの。1秒多くカウントする
+  nowInt2 <- (+ 1) <$> epochTime2Int <$> T.epochTime --切り上げのようなもの。1秒多くカウントする
   let thisTime = if inputStr == "" then (nowInt2 - nowInt) else 120
   putStrLn $ (show thisTime) ++ "秒"
   return $ Problem (probNum, thisTime)
@@ -74,6 +74,27 @@ avg lst = 1.0 * (fromIntegral $ sum $ lst) / (fromIntegral $ length lst)
 getEnumTimeLines :: [Int] -> [Problem]
 getEnumTimeLines ansSecs = zipWith (\a b -> Problem (a,b)) [1..] ansSecs
 
+main2 :: [Int] -> Int -> Int -> IO [Problem]
+main2 timeLines chunk_unit_num solve_num = do
+  let all_avg_sec = avg $ timeLines
+  let enumTimeLines = getEnumTimeLines timeLines
+  let chunks = S.chunksOf chunk_unit_num enumTimeLines
+  let problems = L.sortBy (\p1 p2 -> compare (getProbNum p1) (getProbNum p2)) $ concat $ take solve_num $ L.sortBy (\g1 g2 -> compare (avg $ map getAnsSec g2) (avg $ map getAnsSec g1)) $ chunks
+  let sum_sec = sum $ map getAnsSec problems
+  let avg_time = avg $ map getAnsSec problems
+
+  putStrLn $ show all_avg_sec
+  putStrLn $ show avg_time
+
+  countedResult <- map (\(a, b, c) -> Problem (a,c)) <$> presentProblems problems
+  let new_sum = sum $ map getAnsSec countedResult
+  let new_avg = avg $ map getAnsSec countedResult
+  let sec_diff = new_sum - sum_sec
+  putStrLn $ "平均" ++ (show avg_time) ++ "秒から平均" ++ (show new_avg) ++ "秒に更新しました。(計" ++ (show sec_diff) ++ "秒)"
+
+  let updatedTimeLines = updateTimeLines enumTimeLines countedResult
+  return updatedTimeLines
+
 main = do
   args <- E.getArgs
   when ((length args) /= 3) $ do
@@ -88,21 +109,5 @@ main = do
   let solve_num = read (args !! 2) :: Int -- 一回に解く問題数
 
   timeLines <- readTimeLst fileName
-  let all_avg_sec = avg $ timeLines
-  let enumTimeLines = getEnumTimeLines timeLines
-  let chunks = S.chunksOf chunk_unit_num enumTimeLines
-  let problems = L.sortBy (\p1 p2 -> compare (getProbNum p1) (getProbNum p2)) $ concat $ take solve_num $ L.sortBy (\g1 g2 -> compare (avg $ map getAnsSec g2) (avg $ map getAnsSec g1)) $ chunks
-  let sum_sec = sum $ map getAnsSec problems
-  let avg_time = avg $ map getAnsSec problems
-
-  putStrLn $ show all_avg_sec
-  putStrLn $ show avg_time
-
-  countedResult <- fmap (\lst -> map (\(a, b, c) -> Problem (a,c)) lst) $ presentProblems problems
-  let updatedTimeLines = map getAnsSec $ updateTimeLines enumTimeLines countedResult
-
-  let new_sum = sum $ map getAnsSec countedResult
-  let new_avg = avg $ map getAnsSec countedResult
-  let sec_diff = new_sum - sum_sec
-  putStrLn $ "平均" ++ (show avg_time) ++ "秒から平均" ++ (show new_avg) ++ "秒に更新しました。(計" ++ (show sec_diff) ++ "秒)"
+  updatedTimeLines <- map getAnsSec <$> main2 timeLines chunk_unit_num solve_num
   writeTimeLst fileName updatedTimeLines
