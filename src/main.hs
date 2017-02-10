@@ -64,42 +64,35 @@ avg lst = 1.0 * (fromIntegral $ sum $ lst) / (fromIntegral $ length lst)
 
 main = do
   args <- E.getArgs
-  when ((length args) /= 2) $ do
-    I.hPutStrLn I.stderr "Argument Error:<file_name> single | plural"
+  when ((length args) /= 3) $ do
+    I.hPutStrLn I.stderr "Argument Error:<file_name> <chunk_unit_num> <solve_num>"
     Ex.exitFailure
 
   let fileName = args !! 0 -- "time_data/5_moves_handbook_1.txt"
-  let mode = args !! 1
-  when (mode /= "single" && mode /= "plural") $ do
-    I.hPutStrLn I.stderr "Argument Error:<file_name> single | plural"
-    Ex.exitFailure
+  --何問を1セットにするか (もし4なら見開き1ページの問題を一度に解く)
+  -- ただし、時間の比較は和ではなく平均で比較する
+  -- これは、全問題数が4の倍数でなかった時に、問題数の異なるセットと正当に比較できるようにするため
+  let chunk_unit_num = read (args !! 1) :: Int
+  let solve_num = read (args !! 2) :: Int -- 一回に解く問題数
 
   timeLines <- readTimeLst fileName
   let all_avg_sec = avg $ timeLines
-  putStrLn $ show all_avg_sec
   let enumTimeLines = zip [1..] timeLines
-  let chunks = S.chunksOf 4 enumTimeLines
-
-  let problems = if (mode == "single") then [ head $ L.sortBy (\tpl1 tpl2 -> compare (snd tpl2) (snd tpl1)) $ enumTimeLines ]
-                                       else head $ L.sortBy (\g1 g2 -> compare (avg $ map snd g2) (avg $ map snd g1)) $ chunks
-
-
-  -- 見開きで一番時間がかかっている問題4問をセットで出題
-  -- ただし、時間の比較は和ではなく平均で比較する
-  -- これは、全問題数が4の倍数でなかった時に、問題数の異なるセットと正当に比較できるようにするため
-
+  let chunks = S.chunksOf chunk_unit_num enumTimeLines
+  let problems = L.sortBy (\p1 p2 -> compare (fst p1) (fst p2)) $ concat $ take solve_num $ L.sortBy (\g1 g2 -> compare (avg $ map snd g2) (avg $ map snd g1)) $ chunks
   let sum_sec = sum $ map snd problems
   let avg_time = avg $ map snd problems
+
+  putStrLn $ show all_avg_sec
   putStrLn $ show avg_time
-  -- let sortedTimeLines = L.sortBy (\tpl1 tpl2 -> compare (snd $ tpl2) (snd $ tpl1)) $ enumTimeLines -- 逆順ソート
-  -- let problems = L.sortBy (\tpl1 tpl2 -> compare (fst $ tpl1) (fst $ tpl2)) $ take howManyProblems sortedTimeLines
 
   countedResult <- fmap (\lst -> map (\(a, b, c) -> (a,c)) lst) $ presentProblems problems
   let updatedTimeLines = map snd $ updateTimeLines enumTimeLines countedResult
 
   let new_sum = sum $ map snd countedResult
+  let new_avg = avg $ map snd countedResult
   let sec_diff = new_sum - sum_sec
-  putStrLn $ (show sum_sec) ++ "秒から" ++ (show new_sum) ++ "秒に更新しました。(" ++ (show sec_diff) ++ "秒)"
+  putStrLn $ "平均" ++ (show avg_time) ++ "秒から平均" ++ (show new_avg) ++ "秒に更新しました。(計" ++ (show sec_diff) ++ "秒)"
   writeTimeLst fileName updatedTimeLines
 
   -- putStr $ unlines $ map show $ problems
