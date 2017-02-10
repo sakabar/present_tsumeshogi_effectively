@@ -40,22 +40,21 @@ epochTime2Int eT = read $ show $ eT
 -- (問題番号と元々かかった時間)のタプルのリストを引数として、(問題番号と元々かかった時間と今回かかった秒数)のタプルのリストを返す
 presentProblems :: [Problem] -> IO [(Int, Int, Int)]
 presentProblems problems = do
-  let probNums  = map getProbNum problems
   let origTimes = map getAnsSec problems
-  counted <- forM probNums presentProblem
+  counted <- forM problems presentProblem
   let ans = zipWith (\a p -> ((getProbNum p), a, (getAnsSec p))) origTimes counted
   return ans
 
 -- 引数で与えた問題を提示し、秒数をカウントする
-presentProblem :: Int -> IO Problem
-presentProblem probNum = do
+presentProblem :: Problem -> IO Problem
+presentProblem (Problem (probNum, origTime)) = do
   putStrLn $ (show probNum) ++ "問目を見てください。Ready?"
   inputStr <- getLine
   putStrLn "Go. [解けたらEnterを押してください]"
   nowInt <- epochTime2Int <$> T.epochTime
   inputStr <- getLine
   nowInt2 <- (+ 1) <$> epochTime2Int <$> T.epochTime --切り上げのようなもの。1秒多くカウントする
-  let thisTime = if inputStr == "" then (nowInt2 - nowInt) else 120
+  let thisTime = if inputStr == "" then (nowInt2 - nowInt) else (origTime - 1) --何か文字を入力した場合は、ギブアップと見なし、「1秒更新」した扱いにする。これは、0秒更新だと同じ問題が次回も出題されることになるため。
   putStrLn $ (show thisTime) ++ "秒"
   return $ Problem (probNum, thisTime)
 
@@ -76,6 +75,7 @@ getEnumTimeLines ansSecs = zipWith (\a b -> Problem (a,b)) [1..] ansSecs
 
 main2 :: [Int] -> Int -> Int -> IO [Problem]
 main2 timeLines chunk_unit_num solve_num = do
+  let all_sum_sec = sum $ timeLines
   let all_avg_sec = avg $ timeLines
   let enumTimeLines = getEnumTimeLines timeLines
   let chunks = S.chunksOf chunk_unit_num enumTimeLines
@@ -83,8 +83,8 @@ main2 timeLines chunk_unit_num solve_num = do
   let sum_sec = sum $ map getAnsSec problems
   let avg_time = avg $ map getAnsSec problems
 
-  putStrLn $ show all_avg_sec
-  putStrLn $ show avg_time
+  putStrLn $ "計" ++ (show all_sum_sec) ++ "秒(平均" ++ (show all_avg_sec) ++ "秒)"
+  putStrLn $ "この問題セット: 平均" ++ (show avg_time) ++ "秒"
 
   countedResult <- map (\(a, b, c) -> Problem (a,c)) <$> presentProblems problems
   let new_sum = sum $ map getAnsSec countedResult
